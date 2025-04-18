@@ -1,0 +1,83 @@
+---
+title: "Transfer Learning for Low-Resource Languages in LLMs"
+author: "Abhishek Upperwal"
+date: "2025-04-18"
+categories: ["LLMs", "Transfer Learning", "Indic Languages"]
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    number-sections: false
+    code-fold: true
+image: "transfer.png"
+---
+
+## Motivation
+
+Large Language Models (LLMs) rely on huge training corpora – often trillions of tokens – which gives an advantage to high-resource languages like English. In contrast, many languages have orders of magnitude less digital text available, which limits the effectiveness of simply “scaling up” data for those languages. Major Indic languages, for example, are spoken by hundreds of millions but historically lacked large public text corpora, leading to weaker language model performance. Multilingual LLMs such as mBERT and XLM-R were intended to bootstrap NLP for low-resource languages via cross-lingual transfer, but their performance is often poorest on exactly those low-resource languages or on languages absent from pretraining. Studies have revealed significant gaps – for instance, multilingual models show a ~17% drop in accuracy when an NLI task has premise and hypothesis in different languages (versus both in one language). This drop is even more pronounced for low-resource languages (e.g. Swahili), indicating that current LLMs struggle to **retrieve and apply world knowledge across language boundaries**. In essence, simply adding more data or languages to an LLM is insufficient once the data is scarce; this motivates research into **efficient transfer learning techniques** that can bridge the gap, allowing knowledge learned in rich-resource settings to benefit underrepresented languages.
+
+## Existing Work: Multilingual Models and Transfer Methods
+
+Early approaches to enable cross-lingual learning involved training **multilingual pretrained models** on many languages jointly. **mBERT** (Devlin et al., 2019) is a cased BERT-base model trained on Wikipedia in 104 languages. It learns shared representations across languages, which enables zero-shot transfer to some extent. For example, mBERT’s shared embedding space allows an English-fine-tuned model to be applied to a related language, leveraging the universal linguistic features it learned.
+
+Following mBERT, Facebook AI introduced **XLM** and **XLM-R** (Conneau et al.) which trained on even larger and more diverse multilingual text with improved objectives. XLM-R (2019) in particular trained on 100 languages with a robust RoBERTa-like setup and significantly outperformed mBERT on cross-lingual benchmarks. However, a common finding was that these massive models still underperform monolingual models on high-resource languages and often struggle on the lowest-resource languages. In multilingual pretraining there is a **capacity dilution** problem – languages “compete” for model capacity. The original mBERT tackled this by smoothing the sampling distribution so that low-resource languages were up-weighted (downsampling English so it was only 100× more frequent than Icelandic, instead of 1000×). This helped, but did not fully close the gap.
+
+### Regional and Low-Resource-Specific Models
+
+One response has been to train *language-specific or region-specific LMs* instead of one-size-fits-all multilingual ones. For example, **[IndicBERT](https://arxiv.org/abs/2009.05491)** (Kakwani et al., 2020) focuses on 12 major Indian languages (plus English) using a 8.9 billion token corpus (IndicCorp). It uses the ALBERT architecture (compact factorized parameterization) to reduce model size, making it easier to train on the available 120 GB of Indic text. By specializing on a related language set and vocabulary, IndicBERT achieved better performance on Indic NLP benchmark tasks than generic mBERT.
+
+Similarly, Google released **[MuRIL](https://arxiv.org/abs/2103.10730)** (Khanuja et al., 2021), a BERT model for 17 Indian languages that *explicitly augmented* the training data with parallel translations and transliterated variants of sentences. These cross-lingual signals improved its grasp of Indic languages’ nuances (including code-mixed and Roman-script text), and MuRIL significantly outperformed mBERT on the XTREME cross-lingual benchmark – showing the value of supervised transfer from English to Indic and handling transliteration.
+
+For African languages, researchers introduced models like **[AfriBERTa](https://arxiv.org/abs/2106.16161)** and **AfroXLM-R**, which adapt multilingual models to a set of African languages (often via additional training or adapters). All these efforts illustrate a trend: *constrain or augment the training to better serve low-resource languages*. Either by focusing on a smaller language set (thus giving each more capacity) or by adding translated data, they inject more *effective* knowledge for those languages than plain multilingual training.
+
+### Scaling Multilingual Pretraining
+
+Projects have also tried to scale up model size and data to include more languages. The BigScience initiative released **[BLOOM](https://arxiv.org/abs/2211.05100)**, a 176-billion-parameter Transformer trained on **46 languages** (and 13 programming languages). BLOOM’s training corpus was 1.6 terabytes of text (≈350B tokens), making it the largest open multilingual model to date. BLOOM demonstrated strong zero-shot capabilities: without any fine-tuning in a target language, it can generate text or perform tasks (with prompting) in languages it was trained on.
+
+This showed that massive scale can yield broadly multilingual abilities. However, even such large models face the earlier noted *knowledge barrier*: for example, if BLOOM read a fact in English during training, producing that fact in, say, Swahili might still be challenging without explicit prompting or fine-tuning.
+
+Therefore, *multitask fine-tuning* has been applied to large multilingual models to enhance cross-lingual generalization. For instance, BLOOM was further finetuned to create **[BLOOMZ](https://arxiv.org/abs/2211.01786)**, an instruction-following model. Researchers compiled a multilingual multitask mixture (called xP3) and fine-tuned BLOOM (and an mT5 model) on many English tasks *plus* some non-English tasks. The resulting BLOOMZ and mT0 models can follow instructions in “dozens of languages” zero-shot – even for tasks and languages not seen in fine-tuning. This multitask instruction tuning is an *innovation in training strategy*: it teaches the model to better utilize its knowledge across languages by exposing it to various tasks with prompts.
+
+### Key Multilingual LMs and Approaches
+
+- **mBERT (2019):** Trained on Wikipedia (104 languages). Shared multilingual embeddings. Zero-shot transfer possible but underperforms on low-resource.
+- **XLM & XLM-R (2019–2020):** Trained on CommonCrawl, stronger multilingual representations.
+- **IndicBERT (2020):** Trained on 8.8B Indic tokens, better than mBERT on Indic tasks.
+- **MuRIL (2021):** Used translated and transliterated data to boost Indic understanding.
+- **mT5 (2021):** T5 architecture trained on 101 languages for generation tasks.
+- **BLOOM (2022):** 176B multilingual model trained on 46 natural languages.
+- **BLOOMZ / mT0 (2022):** Instruction-tuned variants trained to follow prompts in multiple languages.
+- **AI4Bharat Models:** IndicBERT, IndicBART, and IndicGPT from AI4Bharat trained on 251B token Indic corpus.
+
+## Architectural Innovations: Decoupling Knowledge from Language
+
+A core challenge is to **separate the model’s “world knowledge” and reasoning ability from language-specific surface forms**, so that what the model learns in one language can be applied to another. Several research directions attempt this decoupling:
+
+### Adapter Modules and Modular Multilinguality
+
+**[MAD-X framework](https://arxiv.org/abs/2005.00052)** (Pfeiffer et al., 2020) introduced modular adapters. Each language has its adapter; task-specific adapters are separate. With **invertible adapters**, the framework can transform between script and shared representation, enabling low-resource adaptation without retraining the full model. State-of-the-art transfer performance with minimal new parameters.
+
+### Decoupled Embeddings and Vocabulary
+
+**[RemBERT](https://arxiv.org/abs/2010.12821)** decouples token embeddings and reallocates saved parameters into Transformer layers. Improves performance on XTREME benchmark significantly. **[XLM-V](https://arxiv.org/abs/2301.10439)** addresses vocab bottleneck using a 1M-token vocab. Major gains on African and indigenous languages.
+
+### Cross-Lingual Knowledge Distillation
+
+**[MMKD](https://arxiv.org/abs/2310.12910)** proposes using an English teacher and multilingual student to align representations across levels (token, sentence, structure). Achieves gains on XNLI and XQuAD for low-resource languages.
+
+### Multilingual Training Objectives
+
+**[InfoXLM](https://arxiv.org/abs/2007.07834)** introduces cross-lingual contrastive loss to align parallel sentences. Reduces performance drop in cross-lingual tasks and teaches the model to associate content regardless of language.
+
+## New Directions and Future Outlook
+
+- **Massively Multilingual LLMs:** Meta’s **XLM-V** and BigScience’s **BLOOM** demonstrate that training with inclusive vocabularies and language balances yields gains.
+- **Instruction-Tuned Multilingual Models:** BLOOMZ and mT0 generalize across languages via task-level alignment. Future work could include cross-lingual CoT (Chain-of-Thought).
+- **Community-Driven Open Data:** AI4Bharat and Masakhane show that grassroots data efforts produce rich datasets for new foundation models.
+- **Language Localization of LLMs:** Adapting strong base LLMs with language-specific decoders and lexicons.
+- **Multilingual Retrieval-Augmented Generation (RAG):** Pairing LLMs with knowledge bases to inject English knowledge into low-resource language outputs.
+- **Evaluation Benchmarks:** MasakhaNER, AmericasNLI, IndicXTREME ensure models are evaluated fairly across global language diversity.
+
+> The next wave of research will likely integrate these approaches — decoupling, retrieval, adapters, multitask tuning — to create **language-inclusive, knowledge-rich LLMs** that scale without data scaling.
+
+
