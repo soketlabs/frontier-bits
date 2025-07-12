@@ -6,10 +6,10 @@
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
-<meta name="author" content="Abhishek Upperwal">
-<meta name="dcterms.date" content="2025-04-18">
+<meta name="author" content="Abhishek Upperwal (Translated) | Original: Jianlin Su">
+<meta name="dcterms.date" content="2025-07-12">
 
-<title>Transfer Learning for Low-Resource Languages in LLMs – Soket AI: Frontier Bits</title>
+<title>QK-Clip: Taking Muon one step further on the road to scale up – Soket AI: Frontier Bits</title>
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
@@ -70,6 +70,35 @@ ul.task-list li input[type="checkbox"] {
   }
 }</script>
 
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
 
 <link rel="stylesheet" href="../../styles.css">
 </head>
@@ -121,21 +150,15 @@ ul.task-list li input[type="checkbox"] {
     <h2 id="toc-title">On this page</h2>
    
   <ul>
-  <li><a href="#motivation" id="toc-motivation" class="nav-link active" data-scroll-target="#motivation">Motivation</a></li>
-  <li><a href="#existing-work-multilingual-models-and-transfer-methods" id="toc-existing-work-multilingual-models-and-transfer-methods" class="nav-link" data-scroll-target="#existing-work-multilingual-models-and-transfer-methods">Existing Work: Multilingual Models and Transfer Methods</a>
-  <ul class="collapse">
-  <li><a href="#regional-and-low-resource-specific-models" id="toc-regional-and-low-resource-specific-models" class="nav-link" data-scroll-target="#regional-and-low-resource-specific-models">Regional and Low-Resource-Specific Models</a></li>
-  <li><a href="#scaling-multilingual-pretraining" id="toc-scaling-multilingual-pretraining" class="nav-link" data-scroll-target="#scaling-multilingual-pretraining">Scaling Multilingual Pretraining</a></li>
-  <li><a href="#key-multilingual-lms-and-approaches" id="toc-key-multilingual-lms-and-approaches" class="nav-link" data-scroll-target="#key-multilingual-lms-and-approaches">Key Multilingual LMs and Approaches</a></li>
-  </ul></li>
-  <li><a href="#architectural-innovations-decoupling-knowledge-from-language" id="toc-architectural-innovations-decoupling-knowledge-from-language" class="nav-link" data-scroll-target="#architectural-innovations-decoupling-knowledge-from-language">Architectural Innovations: Decoupling Knowledge from Language</a>
-  <ul class="collapse">
-  <li><a href="#adapter-modules-and-modular-multilinguality" id="toc-adapter-modules-and-modular-multilinguality" class="nav-link" data-scroll-target="#adapter-modules-and-modular-multilinguality">Adapter Modules and Modular Multilinguality</a></li>
-  <li><a href="#decoupled-embeddings-and-vocabulary" id="toc-decoupled-embeddings-and-vocabulary" class="nav-link" data-scroll-target="#decoupled-embeddings-and-vocabulary">Decoupled Embeddings and Vocabulary</a></li>
-  <li><a href="#cross-lingual-knowledge-distillation" id="toc-cross-lingual-knowledge-distillation" class="nav-link" data-scroll-target="#cross-lingual-knowledge-distillation">Cross-Lingual Knowledge Distillation</a></li>
-  <li><a href="#multilingual-training-objectives" id="toc-multilingual-training-objectives" class="nav-link" data-scroll-target="#multilingual-training-objectives">Multilingual Training Objectives</a></li>
-  </ul></li>
-  <li><a href="#new-directions-and-future-outlook" id="toc-new-directions-and-future-outlook" class="nav-link" data-scroll-target="#new-directions-and-future-outlook">New Directions and Future Outlook</a></li>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link active" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#problem-description" id="toc-problem-description" class="nav-link" data-scroll-target="#problem-description">Problem Description</a></li>
+  <li><a href="#existing-attempts" id="toc-existing-attempts" class="nav-link" data-scroll-target="#existing-attempts">Existing Attempts</a></li>
+  <li><a href="#direct-fix" id="toc-direct-fix" class="nav-link" data-scroll-target="#direct-fix">Direct Fix</a></li>
+  <li><a href="#finetuning" id="toc-finetuning" class="nav-link" data-scroll-target="#finetuning">Fine‑Tuning</a></li>
+  <li><a href="#extension" id="toc-extension" class="nav-link" data-scroll-target="#extension">Extension</a></li>
+  <li><a href="#theoretical-insight" id="toc-theoretical-insight" class="nav-link" data-scroll-target="#theoretical-insight">Theoretical Insight</a></li>
+  <li><a href="#generalization" id="toc-generalization" class="nav-link" data-scroll-target="#generalization">Generalization</a></li>
+  <li><a href="#summary" id="toc-summary" class="nav-link" data-scroll-target="#summary">Summary</a></li>
   </ul>
 </nav>
     </div>
@@ -144,11 +167,11 @@ ul.task-list li input[type="checkbox"] {
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Transfer Learning for Low-Resource Languages in LLMs</h1>
+<h1 class="title">QK-Clip: Taking Muon one step further on the road to scale up</h1>
   <div class="quarto-categories">
-    <div class="quarto-category">LLMs</div>
-    <div class="quarto-category">Transfer Learning</div>
-    <div class="quarto-category">Indic Languages</div>
+    <div class="quarto-category">LLM</div>
+    <div class="quarto-category">MuonClip</div>
+    <div class="quarto-category">Optimisation</div>
   </div>
   </div>
 
@@ -159,14 +182,14 @@ ul.task-list li input[type="checkbox"] {
     <div>
     <div class="quarto-title-meta-heading">Author</div>
     <div class="quarto-title-meta-contents">
-             <p>Abhishek Upperwal </p>
+             <p>Abhishek Upperwal (Translated) | Original: Jianlin Su </p>
           </div>
   </div>
     
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">April 18, 2025</p>
+      <p class="date">July 12, 2025</p>
     </div>
   </div>
   
@@ -178,73 +201,195 @@ ul.task-list li input[type="checkbox"] {
 </header>
 
 
-<section id="motivation" class="level2">
-<h2 class="anchored" data-anchor-id="motivation">Motivation</h2>
-<p>Large Language Models (LLMs) rely on huge training corpora – often trillions of tokens – which gives an advantage to high-resource languages like English. In contrast, many languages have orders of magnitude less digital text available, which limits the effectiveness of simply “scaling up” data for those languages. Major Indic languages, for example, are spoken by hundreds of millions but historically lacked large public text corpora, leading to weaker language model performance. Multilingual LLMs such as mBERT and XLM-R were intended to bootstrap NLP for low-resource languages via cross-lingual transfer, but their performance is often poorest on exactly those low-resource languages or on languages absent from pretraining. Studies have revealed significant gaps – for instance, multilingual models show a ~17% drop in accuracy when an NLI task has premise and hypothesis in different languages (versus both in one language). This drop is even more pronounced for low-resource languages (e.g.&nbsp;Swahili), indicating that current LLMs struggle to <strong>retrieve and apply world knowledge across language boundaries</strong>. In essence, simply adding more data or languages to an LLM is insufficient once the data is scarce; this motivates research into <strong>efficient transfer learning techniques</strong> that can bridge the gap, allowing knowledge learned in rich-resource settings to benefit underrepresented languages.</p>
+<p>Translated to English. Original can be found here: <a href="https://muon.ai/blog/qk-clip-taking-muon-one-step-further-on-the-road-to-scale-up">QK-Clip：让Muon在Scaleup之路上更进一步</a></p>
+<section id="introduction" class="level3">
+<h3 class="anchored" data-anchor-id="introduction">Introduction</h3>
+<p>Four months ago, we released Moonlight, validating the effectiveness of the Muon optimizer on a 16 B MoE model. In Moonlight, we confirmed the necessity of adding Weight Decay to Muon and introduced a technique to migrate Adam hyperparameters via Update RMS alignment, enabling Muon’s rapid application in LLM training. However, as we tried to scale Muon to models with over hundreds of billions of parameters, we encountered a new roadblock—MaxLogit explosion.</p>
+<p>To address this, we propose a simple yet extremely effective method called QK‑Clip. This technique takes a fundamentally principled approach to the MaxLogit phenomenon without sacrificing model performance, and has become a key training innovation in our latest trillion-parameter model, Kimi K2.</p>
+<hr>
 </section>
-<section id="existing-work-multilingual-models-and-transfer-methods" class="level2">
-<h2 class="anchored" data-anchor-id="existing-work-multilingual-models-and-transfer-methods">Existing Work: Multilingual Models and Transfer Methods</h2>
-<p>Early approaches to enable cross-lingual learning involved training <strong>multilingual pretrained models</strong> on many languages jointly. <strong>mBERT</strong> (Devlin et al., 2019) is a cased BERT-base model trained on Wikipedia in 104 languages. It learns shared representations across languages, which enables zero-shot transfer to some extent. For example, mBERT’s shared embedding space allows an English-fine-tuned model to be applied to a related language, leveraging the universal linguistic features it learned.</p>
-<p>Following mBERT, Facebook AI introduced <strong>XLM</strong> and <strong>XLM-R</strong> (Conneau et al.) which trained on even larger and more diverse multilingual text with improved objectives. XLM-R (2019) in particular trained on 100 languages with a robust RoBERTa-like setup and significantly outperformed mBERT on cross-lingual benchmarks. However, a common finding was that these massive models still underperform monolingual models on high-resource languages and often struggle on the lowest-resource languages. In multilingual pretraining there is a <strong>capacity dilution</strong> problem – languages “compete” for model capacity. The original mBERT tackled this by smoothing the sampling distribution so that low-resource languages were up-weighted (downsampling English so it was only 100× more frequent than Icelandic, instead of 1000×). This helped, but did not fully close the gap.</p>
-<section id="regional-and-low-resource-specific-models" class="level3">
-<h3 class="anchored" data-anchor-id="regional-and-low-resource-specific-models">Regional and Low-Resource-Specific Models</h3>
-<p>One response has been to train <em>language-specific or region-specific LMs</em> instead of one-size-fits-all multilingual ones. For example, <strong><a href="https://arxiv.org/abs/2009.05491">IndicBERT</a></strong> (Kakwani et al., 2020) focuses on 12 major Indian languages (plus English) using a 8.9 billion token corpus (IndicCorp). It uses the ALBERT architecture (compact factorized parameterization) to reduce model size, making it easier to train on the available 120 GB of Indic text. By specializing on a related language set and vocabulary, IndicBERT achieved better performance on Indic NLP benchmark tasks than generic mBERT.</p>
-<p>Similarly, Google released <strong><a href="https://arxiv.org/abs/2103.10730">MuRIL</a></strong> (Khanuja et al., 2021), a BERT model for 17 Indian languages that <em>explicitly augmented</em> the training data with parallel translations and transliterated variants of sentences. These cross-lingual signals improved its grasp of Indic languages’ nuances (including code-mixed and Roman-script text), and MuRIL significantly outperformed mBERT on the XTREME cross-lingual benchmark – showing the value of supervised transfer from English to Indic and handling transliteration.</p>
-<p>For African languages, researchers introduced models like <strong><a href="https://arxiv.org/abs/2106.16161">AfriBERTa</a></strong> and <strong>AfroXLM-R</strong>, which adapt multilingual models to a set of African languages (often via additional training or adapters). All these efforts illustrate a trend: <em>constrain or augment the training to better serve low-resource languages</em>. Either by focusing on a smaller language set (thus giving each more capacity) or by adding translated data, they inject more <em>effective</em> knowledge for those languages than plain multilingual training.</p>
+<section id="problem-description" class="level3">
+<h3 class="anchored" data-anchor-id="problem-description">Problem Description</h3>
+<p>Let’s start with a brief introduction to MaxLogit explosion. Recall the definition of attention:</p>
+<p><span class="math display">\[
+\mathbf O = \operatorname{softmax}(\mathbf Q\mathbf K^\top)\mathbf V
+\tag{1}
+\]</span></p>
+<p>Here we omit the scaling factor <span class="math inline">\(1/\sqrt{d}\)</span> since it can be absorbed into <span class="math inline">\(\mathbf Q\)</span>,<span class="math inline">\(\mathbf K\)</span>. Logits here refer to the pre-softmax attention matrix <span class="math inline">\(\mathbf Q\mathbf K^\top\)</span>, and MaxLogit means its maximum absolute entry:</p>
+<p><span class="math display">\[
+S_{\max} = \|\mathbf Q\mathbf K^\top\|\infty
+= \max{i,j} |q_i \cdot k_j|
+\tag{2}
+\]</span></p>
+<p>The max is also taken across the batch, producing a scalar. MaxLogit explosion refers to <span class="math inline">\(S_{\max}\)</span> steadily increasing during training—with linear or superlinear growth—and remaining unstable for long periods.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="max_logit_explosion.png" class="img-fluid figure-img"></p>
+<figcaption>MaxLogit explosion phenomenon</figcaption>
+</figure>
+</div>
+<p>MaxLogit is effectively an outlier metric—its explosion signals uncontrollable outlier values. Specifically,</p>
+<p><span class="math display">\[
+|q_i \cdot k_j| \le \|q_i\|\,\|k_j\| = \|x_iW_q\|\,\|x_jW_k\|
+\le \|x_i\|\,\|x_j\|\,\|W_q\|\,\|W_k\|
+\tag{3}
+\]</span></p>
+<p>Since x is typically RMSNormed, <span class="math inline">\(\|x_i\|\|x_j\|\)</span> won’t explode. Thus, MaxLogit explosion implies the spectral norms <span class="math inline">\(\|W_q\|\)</span> and <span class="math inline">\(\|W_k\|\)</span> risk unbounded growth—clearly undesirable.</p>
+<p>Although large logits become bounded by softmax and usually only waste an attention head, in the worst case they can cause gradient spikes or training collapse. So preventing MaxLogit explosion is critical.</p>
+<hr>
 </section>
-<section id="scaling-multilingual-pretraining" class="level3">
-<h3 class="anchored" data-anchor-id="scaling-multilingual-pretraining">Scaling Multilingual Pretraining</h3>
-<p>Projects have also tried to scale up model size and data to include more languages. The BigScience initiative released <strong><a href="https://arxiv.org/abs/2211.05100">BLOOM</a></strong>, a 176-billion-parameter Transformer trained on <strong>46 languages</strong> (and 13 programming languages). BLOOM’s training corpus was 1.6 terabytes of text (≈350B tokens), making it the largest open multilingual model to date. BLOOM demonstrated strong zero-shot capabilities: without any fine-tuning in a target language, it can generate text or perform tasks (with prompting) in languages it was trained on.</p>
-<p>This showed that massive scale can yield broadly multilingual abilities. However, even such large models face the earlier noted <em>knowledge barrier</em>: for example, if BLOOM read a fact in English during training, producing that fact in, say, Swahili might still be challenging without explicit prompting or fine-tuning.</p>
-<p>Therefore, <em>multitask fine-tuning</em> has been applied to large multilingual models to enhance cross-lingual generalization. For instance, BLOOM was further finetuned to create <strong><a href="https://arxiv.org/abs/2211.01786">BLOOMZ</a></strong>, an instruction-following model. Researchers compiled a multilingual multitask mixture (called xP3) and fine-tuned BLOOM (and an mT5 model) on many English tasks <em>plus</em> some non-English tasks. The resulting BLOOMZ and mT0 models can follow instructions in “dozens of languages” zero-shot – even for tasks and languages not seen in fine-tuning. This multitask instruction tuning is an <em>innovation in training strategy</em>: it teaches the model to better utilize its knowledge across languages by exposing it to various tasks with prompts.</p>
+<section id="existing-attempts" class="level3">
+<h3 class="anchored" data-anchor-id="existing-attempts">Existing Attempts</h3>
+<p>In our follow-up post “Muon Sequel: Why We Chose to Use Muon?” we noted that Weight Decay helps curtail MaxLogit explosion. As a result, small models seldom encounter it, and even the 16B Moonlight model experienced MaxLogit rising to ~120 before subsiding.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="moonlight_max_logit_drop.png" class="img-fluid figure-img"></p>
+<figcaption>Moonlight MaxLogit Drop</figcaption>
+</figure>
+</div>
+<p>However, MaxLogit explosion primarily arises in massively scaled models. With increased size comes more instability, and Weight Decay alone proves insufficient. One could increase it further, but that degrades performance. Another idea is applying a softcap to logits:</p>
+<p><span class="math display">\[
+\mathbf O = \operatorname{softmax}(\operatorname{softcap}(\mathbf Q\mathbf K^\top; \tau))\mathbf V
+\tag{4}
+\]</span></p>
+<p>where <span class="math inline">\(\operatorname{softcap}(x;\tau)=\tau\tanh(x/\tau)\)</span>, introduced by Google’s Gemma2. Since <span class="math inline">\(tanh\)</span> is bounded, softcap naturally ensures that the logits after softcap are also bounded. However, it does not guarantee that the logits before softcap are bounded (we’ve verified this ourselves), so in reality, softcap just transforms one problem into another—it doesn’t truly solve it.</p>
+<p>Aware of this, Gemma3 abandoned softcap in favor of QK‑Norm:</p>
+<p><span class="math display">\[
+\mathbf O = \operatorname{softmax}(\tilde Q\,\tilde K^\top)\mathbf V,
+\quad \tilde Q, \tilde K = \operatorname{RMSNorm}(Q),\operatorname{RMSNorm}(K)
+\tag{5}
+\]</span></p>
+<p>QK‑Norm effectively suppresses MaxLogit in standard multi-head attention (MHA) and grouped Q/K attention (GQA). But it fails in MLA: training uses materialized Q/K, but decoding uses streaming K that can’t be fully materialized—making QK‑Norm inapplicable.</p>
+<p><span class="math display">\[
+\begin{array}{|c|c|}
+\hline
+\textbf{Training / Prefill} &amp; \textbf{Decoding} \\
+\hline
+\begin{aligned}
+\mathbf{o}_t &amp;= \left[ \mathbf{o}^{(1)}_t,\, \mathbf{o}^{(2)}_t,\, \cdots,\, \mathbf{o}^{(h)}_t \right] \\
+\mathbf{o}^{(s)}_t &amp;= \frac{\sum_{i \leq t} \exp\left( \mathbf{q}^{(s)}_t {\mathbf{k}^{(s)}_i}^\top \right) \mathbf{v}^{(s)}_i}
+                         {\sum_{i \leq t} \exp\left( \mathbf{q}^{(s)}_t {\mathbf{k}^{(s)}_i}^\top \right)} \\
+\mathbf{q}^{(s)}_i &amp;= \left[ \mathbf{x}_i \mathbf{W}^{(s)}_{qc},\ \mathbf{x}_i \mathbf{W}^{(s)}_{qr} \mathcal{R}_i \right] \in \mathbb{R}^{d_k + d_r} \\
+\mathbf{k}^{(s)}_i &amp;= \left[ \mathbf{c}_i \mathbf{W}^{(s)}_{kc},\ \mathbf{x}_i \mathbf{W}_{kr} \mathcal{R}_i \right] \in \mathbb{R}^{d_k + d_r} \\
+\mathbf{v}^{(s)}_i &amp;= \mathbf{c}_i \mathbf{W}^{(s)}_v \in \mathbb{R}^{d_v}, \quad
+\mathbf{c}_i = \mathbf{x}_i \mathbf{W}_c \in \mathbb{R}^{d_c}
+\end{aligned}
+&amp;
+\begin{aligned}
+\mathbf{o}_t &amp;= \left[ \mathbf{o}^{(1)}_t \mathbf{W}^{(1)}_v,\, \mathbf{o}^{(2)}_t \mathbf{W}^{(2)}_v,\, \cdots,\, \mathbf{o}^{(h)}_t \mathbf{W}^{(h)}_v \right] \\
+\mathbf{o}^{(s)}_t &amp;= \frac{\sum_{i \leq t} \exp\left( \mathbf{q}^{(s)}_t {\mathbf{k}^{(s)}_i}^\top \right) \mathbf{v}^{(s)}_i}
+                         {\sum_{i \leq t} \exp\left( \mathbf{q}^{(s)}_t {\mathbf{k}^{(s)}_i}^\top \right)} \\
+\mathbf{q}^{(s)}_i &amp;= \left[ \mathbf{x}_i \mathbf{W}^{(s)}_{qc} {\mathbf{W}^{(s)}_{kc}}^\top,\ \mathbf{x}_i \mathbf{W}^{(s)}_{qr} \mathcal{R}_i \right] \in \mathbb{R}^{d_c + d_r} \\
+\mathbf{k}^{(s)}_i &amp;= \left[ \mathbf{c}_i,\ \mathbf{x}_i \mathbf{W}_{kr} \mathcal{R}_i \right] \in \mathbb{R}^{d_c + d_r} \\
+\mathbf{v}^{(s)}_i &amp;= \mathbf{c}_i = \mathbf{x}_i \mathbf{W}_c \in \mathbb{R}^{d_c}
+\end{aligned}
+\\
+\hline
+\end{array}
+\]</span></p>
+<p>Why MLA? We’ve already used two articles “The Road to Transformer Upgrade: 21. What’s so good about MLA?” Above)》 And “The Road to Transformer Upgrade: 21. What’s so good about MLA?” Next)》 This issue was discussed and will not be repeated here. In conclusion, we hope that the MLA will also have QK-Norm-like means that can guarantee the suppression of MaxLogit.</p>
 </section>
-<section id="key-multilingual-lms-and-approaches" class="level3">
-<h3 class="anchored" data-anchor-id="key-multilingual-lms-and-approaches">Key Multilingual LMs and Approaches</h3>
+<section id="direct-fix" class="level3">
+<h3 class="anchored" data-anchor-id="direct-fix">Direct Fix</h3>
+<p>We tried indirect methods—reducing Q/K learning rates, increasing their Weight Decay—but none worked. The closest success was Partial QK‑Norm: applying RMSNorm to qr, qc, kr, but not kc. While it suppressed MaxLogit, it degraded length-activation quality.</p>
+<p>After many failed attempts, we reconsidered: what’s a direct measure to solve MaxLogit explosion? Inequality (3) suggests singular-value clipping on <span class="math inline">\(W_q\)</span> and <span class="math inline">\(W_k\)</span>, but that’s still indirect and costly.</p>
+<p>Instead, we realized MaxLogit itself is the direct signal for clipping. Specifically, when <span class="math inline">\(S_{\max}\)</span> exceeds threshold <span class="math inline">\(\tau\)</span>, we scale <span class="math inline">\(QK^\top\)</span> by <span class="math inline">\(\gamma = \tau/S_{\max}\)</span>. This ensures the new MaxLogit ≤ <span class="math inline">\(\tau\)</span>. Implementing this by scaling the weights yields QK‑Clip:</p>
+<p><span class="math display">\[
+\mathbf{W}_t = \text{Optimizer}(\mathbf{W}_{t-1}, \mathbf{G}_t)
+\text{ if } S_{\max}^{(l)} &gt; \tau \text{ and } \mathbf{W} \in \{\mathbf{W}_q^{(l)}, \mathbf{W}_k^{(l)}\}, \text{ then } \mathbf{W}_t \leftarrow \mathbf{W}_t \times \sqrt{\frac{\tau}{S_{\max}^{(l)}}}
+\]</span></p>
+<p>Here is the maxlogit in layer <span class="math inline">\(l\)</span>, and <span class="math inline">\(W_q\)</span>, <span class="math inline">\(W_k\)</span> its Q/K weights. After the optimizer update, we clip Q/K weights based on observed <span class="math inline">\(S_{\max}\)</span>, preserving inference behavior, and importantly, compatible with MLA.</p>
+<hr>
+</section>
+<section id="finetuning" class="level3">
+<h3 class="anchored" data-anchor-id="finetuning">Fine‑Tuning</h3>
+<p>The initial version suppressed MaxLogit but caused over-clipping: we monitored a single S_{} across all heads, so all heads were clipped together, even if only one misbehaving head ran wild.</p>
+<p>The fix: apply per-head clipping. Monitor S_{max}^{(l,h)} for each layer and head. Moreover, since MLA’s kr is shared across heads, we only apply clipping to qr, qc, and kc, not kr.</p>
+<p>The final QK‑Clip logic:</p>
+<p><span class="math display">\[
+\begin{aligned}
+\mathbf{W}_t &amp;= \text{Optimizer}(\mathbf{W}_{t-1}, \mathbf{G}_t) \\
+\text{if } S_{\max}^{(l,h)} &amp;&gt; \tau \text{ and }
+\mathbf{W} \in \{\mathbf{W}_{qc}^{(l,h)}, \mathbf{W}_{kc}^{(l,h)}\}: \\
+\quad \mathbf{W}_t &amp;\leftarrow \mathbf{W}_t \times \sqrt{\frac{\tau}{S_{\max}^{(l,h)}}} \\
+\text{elif } \mathbf{W} &amp;\in \{\mathbf{W}_{qr}^{(l,h)}\}: \\
+\quad \mathbf{W}_t &amp;\leftarrow \mathbf{W}_t \times \frac{\tau}{S_{\max}^{(l,h)}}
+\end{aligned}
+\]</span></p>
+<p>Here upper indices <span class="math inline">\((l, h)\)</span> denote layer <span class="math inline">\(l\)</span> and head <span class="math inline">\(h\)</span>.</p>
+<hr>
+</section>
+<section id="extension" class="level3">
+<h3 class="anchored" data-anchor-id="extension">Extension</h3>
+<p>The procedure above describes how QK‑Clip performs minimal adjustments to Q/K weights using MaxLogit signals, keeping them below τ. Since it directly modifies weights post-update, it’s more broadly applicable than QK‑Norm, including MLA.</p>
+<p>In training Kimi K2, we set τ=100. Out of ≈220k steps, around step 7 k some heads surpassed τ. Muon and QK‑Clip battled for ~70k steps, after which all heads self-regulated, bringing MaxLogit under 100. QK‑Clip then ceased to act.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="max_logit_coming_down.png" class="img-fluid figure-img"></p>
+<figcaption>After a battle between Muon and QK-Clip for nearly 70k steps, MaxLogit has come down on its own</figcaption>
+</figure>
+</div>
+<p>This suggests that under Weight Decay, once stabilized, models naturally adapt to reduce MaxLogit—and QK‑Clip helps them safely navigate early instability. In small models, even aggressive clipping (e.g., down to 30) showed no performance degradation. Combined with the self-regulating behavior, we believe QK‑Clip is performance-safe.</p>
+<p>We also found Muon easier to push MaxLogit over limits compared to Adam. Thus QK‑Clip is a tailored supplement for Muon’s large-scale training “secret weapon”—hence the name MuonClip (applied to <span class="math inline">\(W \in \mathbb R^{n\times m}\)</span>):</p>
+<p><span class="math display">\[
+\left.\begin{array}{ll}
+\textcolor{blue}{\text{MuonClip}} &amp; \left\{
+\begin{array}{l}
+\mathbf{M}_t = \mu \mathbf{M}_{t-1} + \mathbf{G}_t \\
+\\
+\mathbf{O}_t = \text{msign}(\mathbf{M}_t) \times \sqrt{\max(n, m)} \times 0.2 \\
+\quad \quad \quad \quad \quad \quad \quad\quad \underbrace{\quad\quad\quad\quad\quad\quad\quad\quad\quad}_{\text{Match Adam Update RMS}} \\
+\\
+\mathbf{W}_t = \mathbf{W}_{t-1} - \eta_t (\mathbf{O}_t + \lambda \mathbf{W}_{t-1}) \\
+\\
+\left.
+\begin{array}{l}
+\text{if } S_{\max}^{(l,h)} &gt; \tau : \\
+\quad \quad \text{if } \mathbf{W} \in \left\{ \mathbf{W}_{qc}^{(l,h)}, \mathbf{W}_{kc}^{(l,h)} \right\} : \\
+\quad\quad \quad\quad \mathbf{W}_t \leftarrow \mathbf{W}_t \times \sqrt{\tau / S_{\max}^{(l,h)}} \\
+\quad\quad \text{elif } \mathbf{W} \in \left\{ \mathbf{W}_{qr}^{(l,h)} \right\} : \\
+\quad\quad\quad\quad \mathbf{W}_t \leftarrow \mathbf{W}_t \times \tau / S_{\max}^{(l,h)}
+\end{array}
+\right\} \textcolor{blue}{\text{QK-Clip}}
+\end{array}
+\right. \\
+\end{array}\right.
+\]</span></p>
+<p>Although the MaxLogit tendency is stronger in Muon, it’s not exclusive—Adam-based models like DeepSeek‑V3 and Gemma2 also exhibited MaxLogit issues. QK‑Clip can also be adapted into AdamClip.</p>
+<hr>
+</section>
+<section id="theoretical-insight" class="level3">
+<h3 class="anchored" data-anchor-id="theoretical-insight">Theoretical Insight</h3>
+<p>Why does Muon trigger MaxLogit explosion more than Adam?</p>
+<p>Recall from (3) that MaxLogit explosion correlates with spectral-norm explosion of <span class="math inline">\(W_q/W_k\)</span>. Spectral norms equal the largest singular value, so we ask: why does Muon increase singular values more aggressively?</p>
+<p>Muon’s update is full-rank (due to msign making all singular values equal), whereas typical Adam updates are low-rank, concentrated on top singular directions. Mathematically, given SVDs,</p>
+<p><span class="math display">\[
+W_{t-1} = \sum_i \sigma_i u_i v_i^\top,\quad
+\Delta_{\text{Muon}} = \sum_j \bar\sigma\,\bar u_j \bar v_j^\top,\quad
+\Delta_{\text{Adam}} = \sum_j \tilde\sigma_j \tilde u_j \tilde v_j^\top
+\]</span></p>
+<p>Thus:</p>
+<p><span class="math inline">\(W_t = W_{t-1} + \Delta_{\text{Muon}}\)</span> <span class="math inline">\(W_t = W_{t-1} + \Delta_{\text{Adam}}\)</span></p>
+<p>If update singular vectors align with parameter singular vectors, singular values add. Since Muon’s full-rank updates intersect more parameter directions than low-rank Adam, Muon is more likely to inflate singular values.</p>
+<p>We verified that Muon-trained weights have higher singular-value entropy (effective rank) than Adam-trained ones. Because attention logits have the bilinear form <span class="math inline">\(q_i \cdot k_j = (x_iW_q)\cdot(x_jW_k)\)</span>, multiplicative effects amplify the instability—leading to more severe MaxLogit explosion.</p>
+<p>Image: Singular-value entropy comparison between Muon and Adam</p>
+<p>Since singular-vector collisions are rare, only a small subset of heads exhibit MaxLogit spikes—matching our empirical observations.</p>
+<hr>
+</section>
+<section id="generalization" class="level3">
+<h3 class="anchored" data-anchor-id="generalization">Generalization</h3>
+<p>QK‑Clip embodies a broader principle: “clip where instability appears”. Beyond MaxLogit, if models experience e.g.&nbsp;MaxOutput explosion, the same approach can apply to output-weight matrices <span class="math inline">\(W_o\)</span>. While per-dimension clip scales are computationally intensive, possible heuristics might be crafted.</p>
+<p>This makes QK‑Clip a kind of antibiotic for training instability—maybe not always the most elegant, but often the most direct and effective.</p>
+<hr>
+</section>
+<section id="summary" class="level3">
+<h3 class="anchored" data-anchor-id="summary">Summary</h3>
+<p>In summary:</p>
 <ul>
-<li><strong>mBERT (2019):</strong> Trained on Wikipedia (104 languages). Shared multilingual embeddings. Zero-shot transfer possible but underperforms on low-resource.</li>
-<li><strong>XLM &amp; XLM-R (2019–2020):</strong> Trained on CommonCrawl, stronger multilingual representations.</li>
-<li><strong>IndicBERT (2020):</strong> Trained on 8.8B Indic tokens, better than mBERT on Indic tasks.</li>
-<li><strong>MuRIL (2021):</strong> Used translated and transliterated data to boost Indic understanding.</li>
-<li><strong>mT5 (2021):</strong> T5 architecture trained on 101 languages for generation tasks.</li>
-<li><strong>BLOOM (2022):</strong> 176B multilingual model trained on 46 natural languages.</li>
-<li><strong>BLOOMZ / mT0 (2022):</strong> Instruction-tuned variants trained to follow prompts in multiple languages.</li>
-<li><strong>AI4Bharat Models:</strong> IndicBERT, IndicBART, and IndicGPT from AI4Bharat trained on 251B token Indic corpus.</li>
+<li>We introduce QK‑Clip, a novel, post-update weight adjustment method to directly counter MaxLogit explosion.</li>
+<li>Unlike QK‑Norm, it doesn’t change the forward-pass behavior and is thus widely compatible, including with MLA.</li>
+<li>QK‑Clip is a key stability mechanism in Muon + MLA training of ultra-large models, and a core innovation behind Kimi K2.</li>
 </ul>
-</section>
-</section>
-<section id="architectural-innovations-decoupling-knowledge-from-language" class="level2">
-<h2 class="anchored" data-anchor-id="architectural-innovations-decoupling-knowledge-from-language">Architectural Innovations: Decoupling Knowledge from Language</h2>
-<p>A core challenge is to <strong>separate the model’s “world knowledge” and reasoning ability from language-specific surface forms</strong>, so that what the model learns in one language can be applied to another. Several research directions attempt this decoupling:</p>
-<section id="adapter-modules-and-modular-multilinguality" class="level3">
-<h3 class="anchored" data-anchor-id="adapter-modules-and-modular-multilinguality">Adapter Modules and Modular Multilinguality</h3>
-<p><strong><a href="https://arxiv.org/abs/2005.00052">MAD-X framework</a></strong> (Pfeiffer et al., 2020) introduced modular adapters. Each language has its adapter; task-specific adapters are separate. With <strong>invertible adapters</strong>, the framework can transform between script and shared representation, enabling low-resource adaptation without retraining the full model. State-of-the-art transfer performance with minimal new parameters.</p>
-</section>
-<section id="decoupled-embeddings-and-vocabulary" class="level3">
-<h3 class="anchored" data-anchor-id="decoupled-embeddings-and-vocabulary">Decoupled Embeddings and Vocabulary</h3>
-<p><strong><a href="https://arxiv.org/abs/2010.12821">RemBERT</a></strong> decouples token embeddings and reallocates saved parameters into Transformer layers. Improves performance on XTREME benchmark significantly. <strong><a href="https://arxiv.org/abs/2301.10439">XLM-V</a></strong> addresses vocab bottleneck using a 1M-token vocab. Major gains on African and indigenous languages.</p>
-</section>
-<section id="cross-lingual-knowledge-distillation" class="level3">
-<h3 class="anchored" data-anchor-id="cross-lingual-knowledge-distillation">Cross-Lingual Knowledge Distillation</h3>
-<p><strong><a href="https://arxiv.org/abs/2310.12910">MMKD</a></strong> proposes using an English teacher and multilingual student to align representations across levels (token, sentence, structure). Achieves gains on XNLI and XQuAD for low-resource languages.</p>
-</section>
-<section id="multilingual-training-objectives" class="level3">
-<h3 class="anchored" data-anchor-id="multilingual-training-objectives">Multilingual Training Objectives</h3>
-<p><strong><a href="https://arxiv.org/abs/2007.07834">InfoXLM</a></strong> introduces cross-lingual contrastive loss to align parallel sentences. Reduces performance drop in cross-lingual tasks and teaches the model to associate content regardless of language.</p>
-</section>
-</section>
-<section id="new-directions-and-future-outlook" class="level2">
-<h2 class="anchored" data-anchor-id="new-directions-and-future-outlook">New Directions and Future Outlook</h2>
-<ul>
-<li><strong>Massively Multilingual LLMs:</strong> Meta’s <strong>XLM-V</strong> and BigScience’s <strong>BLOOM</strong> demonstrate that training with inclusive vocabularies and language balances yields gains.</li>
-<li><strong>Instruction-Tuned Multilingual Models:</strong> BLOOMZ and mT0 generalize across languages via task-level alignment. Future work could include cross-lingual CoT (Chain-of-Thought).</li>
-<li><strong>Community-Driven Open Data:</strong> AI4Bharat and Masakhane show that grassroots data efforts produce rich datasets for new foundation models.</li>
-<li><strong>Language Localization of LLMs:</strong> Adapting strong base LLMs with language-specific decoders and lexicons.</li>
-<li><strong>Multilingual Retrieval-Augmented Generation (RAG):</strong> Pairing LLMs with knowledge bases to inject English knowledge into low-resource language outputs.</li>
-<li><strong>Evaluation Benchmarks:</strong> MasakhaNER, AmericasNLI, IndicXTREME ensure models are evaluated fairly across global language diversity.</li>
-</ul>
-<blockquote class="blockquote">
-<p>The next wave of research will likely integrate these approaches — decoupling, retrieval, adapters, multitask tuning — to create <strong>language-inclusive, knowledge-rich LLMs</strong> that scale without data scaling.</p>
-</blockquote>
 
 
 </section>

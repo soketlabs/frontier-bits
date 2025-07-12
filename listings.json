@@ -2,6 +2,7 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/muon_qk_clip/index.html",
       "/posts/in_lang_transfer/index.html",
       "/posts/weight_init/index.html"
     ]
