@@ -1,23 +1,23 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
-    <loc>https://soketlabs.github.io/frontier-bits/about.html</loc>
+    <loc>https://frontier.soket.ai/about.html</loc>
     <lastmod>2025-04-18T17:09:21.331Z</lastmod>
   </url>
   <url>
-    <loc>https://soketlabs.github.io/frontier-bits/posts/weight_init/index.html</loc>
+    <loc>https://frontier.soket.ai/posts/weight_init/index.html</loc>
     <lastmod>2025-04-18T17:09:21.358Z</lastmod>
   </url>
   <url>
-    <loc>https://soketlabs.github.io/frontier-bits/posts/muon_qk_clip/index.html</loc>
+    <loc>https://frontier.soket.ai/posts/muon_qk_clip/index.html</loc>
     <lastmod>2025-07-12T21:09:23.520Z</lastmod>
   </url>
   <url>
-    <loc>https://soketlabs.github.io/frontier-bits/posts/in_lang_transfer/index.html</loc>
+    <loc>https://frontier.soket.ai/posts/in_lang_transfer/index.html</loc>
     <lastmod>2025-04-18T17:09:21.334Z</lastmod>
   </url>
   <url>
-    <loc>https://soketlabs.github.io/frontier-bits/index.html</loc>
+    <loc>https://frontier.soket.ai/index.html</loc>
     <lastmod>2025-04-18T17:09:21.332Z</lastmod>
   </url>
 </urlset>

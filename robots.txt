@@ -1,1 +1,1 @@
-Sitemap: https://soketlabs.github.io/frontier-bits/sitemap.xml
+Sitemap: https://frontier.soket.ai/sitemap.xml
